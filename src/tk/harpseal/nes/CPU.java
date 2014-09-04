@@ -1,13 +1,17 @@
 package tk.harpseal.nes;
 
+import tk.harpseal.nes.instruction.Instruction;
+
 public class CPU {
 	// Bytes per instruction
 	private final byte[] BPI = {1,2,1,2,2,2,2,2,1,2,1,2,3,3,3,3,2,2,1,2,2,2,2,2,1,3,1,3,3,3,3,3,3,2,1,2,2,2,2,2,1,2,1,2,3,3,3,3,2,2,1,2,2,2,2,2,1,3,1,3,3,3,3,3,1,2,1,2,2,2,2,2,1,2,1,2,3,3,3,3,2,2,1,2,2,2,2,2,1,3,1,3,3,3,3,3,1,2,1,2,2,2,2,2,1,2,1,2,3,3,3,3,2,2,1,2,2,2,2,2,1,3,1,3,3,3,3,3,1,2,1,2,2,2,2,2,1,2,1,2,3,3,3,3,2,2,1,2,2,2,2,2,1,3,1,3,3,3,3,3,2,2,2,2,2,2,2,2,1,2,1,2,3,3,3,3,2,2,1,2,2,2,2,2,1,3,1,3,3,3,3,3,1,2,1,2,2,2,2,2,1,2,1,2,3,3,3,3,2,2,1,2,2,2,2,2,1,3,1,3,3,3,3,3,1,2,1,2,2,2,2,2,1,2,1,2,3,3,3,3,2,2,1,2,2,2,2,2,1,3,1,3,3,3,3,3};
 	// Cycles per instruction
-	private final byte[] CPI = {1,2,1,2,2,2,2,2,1,2,1,2,3,3,3,3,2,2,1,2,2,2,2,2,1,3,1,3,3,3,3,3,3,2,1,2,2,2,2,2,1,2,1,2,3,3,3,3,2,2,1,2,2,2,2,2,1,3,1,3,3,3,3,3,1,2,1,2,2,2,2,2,1,2,1,2,3,3,3,3,2,2,1,2,2,2,2,2,1,3,1,3,3,3,3,3,1,2,1,2,2,2,2,2,1,2,1,2,3,3,3,3,2,2,1,2,2,2,2,2,1,3,1,3,3,3,3,3,1,2,1,2,2,2,2,2,1,2,1,2,3,3,3,3,2,2,1,2,2,2,2,2,1,3,1,3,3,3,3,3,2,2,2,2,2,2,2,2,1,2,1,2,3,3,3,3,2,2,1,2,2,2,2,2,1,3,1,3,3,3,3,3,1,2,1,2,2,2,2,2,1,2,1,2,3,3,3,3,2,2,1,2,2,2,2,2,1,3,1,3,3,3,3,3,1,2,1,2,2,2,2,2,1,2,1,2,3,3,3,3,2,2,1,2,2,2,2,2,1,3,1,3,3,3,3,3};
+	private final byte[] CPI = {7,6,1,8,3,3,5,5,3,2,2,2,4,4,6,6,3,5,1,8,4,4,6,6,2,4,2,7,4,4,7,7,6,6,1,8,3,3,5,5,4,2,2,2,4,4,6,6,2,5,1,8,4,4,6,6,2,4,2,7,4,4,7,7,6,6,1,8,3,3,5,5,3,2,2,2,3,4,6,6,3,5,1,8,4,4,6,6,2,4,2,7,4,4,7,7,6,6,1,8,3,3,5,5,4,2,2,2,5,4,6,6,2,5,1,8,4,4,6,6,2,4,2,7,4,4,7,7,2,6,2,6,3,3,3,3,2,2,2,2,4,4,4,4,3,6,1,6,4,4,4,4,2,5,2,5,5,5,5,5,2,6,2,6,3,3,3,3,2,2,2,2,4,4,4,4,2,5,1,5,4,4,4,4,2,4,2,4,4,4,4,4,2,6,2,8,3,3,5,5,2,2,2,2,4,4,6,6,3,5,1,8,4,4,6,6,2,4,2,7,4,4,7,7,2,6,2,8,3,3,5,5,2,2,2,2,4,4,6,6,2,5,1,8,4,4,6,6,2,4,2,7,4,4,7,7};
 	// How many nanoseconds in between cycles in NTSC & PAL
 	private final double CPU_NTSC_NS = 55.873D;
 	private final double CPU_PAL_NS = 60.147D;
+	
+	private final Instruction[] set = new Instruction[256];
 	
 	private byte[] mem = new byte[16416];
 	
@@ -66,6 +70,7 @@ public class CPU {
 	}
 	
 	public void runCycle() {
+		runInstructionCycle();
 		if (cycles == 0) {
 			runInstructionAtPC();
 		} else if (cycles == 1) {
@@ -174,7 +179,11 @@ public class CPU {
 		return getByte(0x100 + S);
 	}
 	private void runInstruction(byte i, int p) {
-		switch (i) {
+		byte B = 0;
+		// 6502 bugs/quirks are INTENTIONALLY included
+		// - RMW instructions write twice: original then modified
+		// - JMP indirect bug present
+		/* switch (i) {
 		case 0x00: // BRK
 			// TODO	
 			break;
@@ -185,8 +194,7 @@ public class CPU {
 			setA(A | getByte(p));
 			break;
 		case 0x06: // ASL zpg
-			byte B = getByte(p);
-			// RMW instructions write twice: original then modified
+			B = getByte(p);
 			setByte(p, B); 
 			setByte(p, ASL(B));
 			break;
@@ -199,8 +207,26 @@ public class CPU {
 		case 0x0A: // ASL A
 			setA(ASL(A));
 			break;
+		case 0x0D: // ORA abs
+			setA(A | getByte(p));
+			break;
+		case 0x0E: // ASL abs
+			B = getByte(p);
+			setByte(p, B); 
+			setByte(p, ASL(B));
+			break;
+		case 0x10: // BPL rel
+			
+			break;
 		// Below this line only undocumented opcodes
-		}
+		} */
 		cycles = CPI[i] - 1;
+	}
+	private void runInstructionCycle() {
+		byte B = 0;
+		// 6502 bugs/quirks are INTENTIONALLY included
+		// - RMW instructions write twice: original then modified
+		// - JMP indirect bug present
+		
 	}
 }
