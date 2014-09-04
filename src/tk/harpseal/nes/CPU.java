@@ -15,12 +15,12 @@ public class CPU {
 	
 	private byte[] mem = new byte[16416];
 	
-	private int PC = 0;
+	public int PC = 0;
 	private byte A = 0;
 	private byte X = 0;
 	private byte Y = 0;
 	private byte S = (byte) 0xFD;
-	private CPUFlags P = new CPUFlags();
+	public CPUFlags P = new CPUFlags();
 	
 	private int P_NMI = 0;
 	private int P_RST = 0;
@@ -28,6 +28,8 @@ public class CPU {
 	
 	// How many cycles left for this instruction
 	private int cycles = 0;
+	// Current instruction
+	private byte instr = 0;
 	
 	public boolean S_NMI = false;
 	public boolean S_RST = false;
@@ -37,11 +39,23 @@ public class CPU {
 	
 	public CPU(NES n) {
 		nes = n;
+		for (int i = 0; i < 256; i++) {
+			set[i] = Instruction.getInstructionFromId(this, (byte) i);
+		}
 		for (int i = 0x0000; i < 0x8000; i++) {
 			mem[i] = (byte) 0xFF;
 		}
 		P = new CPUFlags();
 		
+	}
+	public byte getA() {
+		return A;
+	}
+	public byte getX() {
+		return X;
+	}
+	public byte getY() {
+		return Y;
 	}
 	public void setA(byte b) {
 		A = b;
@@ -61,7 +75,7 @@ public class CPU {
 		if (a2 == 0) P.OR((byte) 0x02); 
 		if (a2 < 0) P.OR((byte) 0x80); 
 	}
-	private void compare(byte a1, byte a2) {
+	public void compare(byte a1, byte a2) {
 		P.AND((byte) 0b01111100);
 		byte b = (byte) ((byte) a1 + a2);
 		if (b == 0) P.OR((byte) 0x02); 
@@ -72,22 +86,16 @@ public class CPU {
 	public void runCycle() {
 		runInstructionCycle();
 		if (cycles == 0) {
-			runInstructionAtPC();
-		} else if (cycles == 1) {
 			checkInterrupts();
+			runInstructionAtPC();
+			runInstructionCycle();
 		} else {
 			cycles--;
 		}
 	}
 	public void runInstructionAtPC() {
 		byte i = mem[PC];
-		int p = 0;
-		if (BPI[i] > 1)
-			p = mem[PC + 1];
-		if (BPI[i] > 2)
-			p = p | (mem[PC + 2] << 8);
-		runInstruction(i,p);
-		PC += BPI[i];
+		runInstruction(i);
 	}
 	private void checkInterrupts() {
 		if (S_RST) { reset(); return; }
@@ -99,7 +107,7 @@ public class CPU {
 		S_IRQ = false;
 		setByte(0x4015, (byte) 0);
 	}
-	private byte getByte(int i) {
+	public byte getByte(int i) {
 		i = i & 0xFFFF;
 		if (i >= 0x800 && i <= 0x1FFF) {
 			while (i >= 0x800) {
@@ -149,6 +157,7 @@ public class CPU {
 	}
 	private void callIRQ() {
 		pushInterruptData();
+		P.disableInterrupts();
 		PC = getShort(0xFFFE);
 	}
 	private int indX(int zp) {
@@ -160,7 +169,7 @@ public class CPU {
 	private short getShort(int addr) {
 		return (short) (getByte(addr) | (getByte(addr + 1) << 8));
 	}
-	private byte ASL(byte b) {
+	/*private byte ASL(byte b) {
 		byte v = (byte) (((b << 1) & 0xFF) | P.getCarry());
 		P.setCarry((b & 0x80) != 0);
 		return v;
@@ -169,17 +178,16 @@ public class CPU {
 		byte v = (byte) (((b >> 1) & 0xFF) | (P.getCarry() << 7));
 		P.setCarry((b & 0x01) != 0);
 		return v;
-	}
-	private void push(byte d) {
+	}*/
+	public void push(byte d) {
 		setByte(0x100 + S, d);
 		S = (byte) ((S - 1) & 0xFF);
 	}
-	private byte pull() {
+	public byte pull() {
 		S = (byte) ((S + 1) & 0xFF);
 		return getByte(0x100 + S);
 	}
-	private void runInstruction(byte i, int p) {
-		byte B = 0;
+	private void runInstruction(byte i) {
 		// 6502 bugs/quirks are INTENTIONALLY included
 		// - RMW instructions write twice: original then modified
 		// - JMP indirect bug present
@@ -220,13 +228,14 @@ public class CPU {
 			break;
 		// Below this line only undocumented opcodes
 		} */
+		instr = i;
+		PC += BPI[i];
 		cycles = CPI[i] - 1;
 	}
 	private void runInstructionCycle() {
-		byte B = 0;
 		// 6502 bugs/quirks are INTENTIONALLY included
 		// - RMW instructions write twice: original then modified
 		// - JMP indirect bug present
-		
+		set[instr].runCycle(cycles);
 	}
 }

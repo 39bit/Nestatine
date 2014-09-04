@@ -1,0 +1,5 @@
+package tk.harpseal.nes.instruction;
+
+public enum AddressingMode {
+	IMPL_OR_A, IMMEDIATE, RELATIVE, ZEROPAGE, ZEROPAGE_X, ZEROPAGE_Y, ABSOLUTE, ABSOLUTE_X, ABSOLUTE_Y, INDIRECT, INDIRECT_X, INDIRECT_Y
+}
