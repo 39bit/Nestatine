@@ -7,9 +7,6 @@ public class CPU {
 	private final byte[] BPI = {1,2,1,2,2,2,2,2,1,2,1,2,3,3,3,3,2,2,1,2,2,2,2,2,1,3,1,3,3,3,3,3,3,2,1,2,2,2,2,2,1,2,1,2,3,3,3,3,2,2,1,2,2,2,2,2,1,3,1,3,3,3,3,3,1,2,1,2,2,2,2,2,1,2,1,2,3,3,3,3,2,2,1,2,2,2,2,2,1,3,1,3,3,3,3,3,1,2,1,2,2,2,2,2,1,2,1,2,3,3,3,3,2,2,1,2,2,2,2,2,1,3,1,3,3,3,3,3,1,2,1,2,2,2,2,2,1,2,1,2,3,3,3,3,2,2,1,2,2,2,2,2,1,3,1,3,3,3,3,3,2,2,2,2,2,2,2,2,1,2,1,2,3,3,3,3,2,2,1,2,2,2,2,2,1,3,1,3,3,3,3,3,1,2,1,2,2,2,2,2,1,2,1,2,3,3,3,3,2,2,1,2,2,2,2,2,1,3,1,3,3,3,3,3,1,2,1,2,2,2,2,2,1,2,1,2,3,3,3,3,2,2,1,2,2,2,2,2,1,3,1,3,3,3,3,3};
 	// Cycles per instruction
 	private final byte[] CPI = {7,6,1,8,3,3,5,5,3,2,2,2,4,4,6,6,3,5,1,8,4,4,6,6,2,4,2,7,4,4,7,7,6,6,1,8,3,3,5,5,4,2,2,2,4,4,6,6,2,5,1,8,4,4,6,6,2,4,2,7,4,4,7,7,6,6,1,8,3,3,5,5,3,2,2,2,3,4,6,6,3,5,1,8,4,4,6,6,2,4,2,7,4,4,7,7,6,6,1,8,3,3,5,5,4,2,2,2,5,4,6,6,2,5,1,8,4,4,6,6,2,4,2,7,4,4,7,7,2,6,2,6,3,3,3,3,2,2,2,2,4,4,4,4,3,6,1,6,4,4,4,4,2,5,2,5,5,5,5,5,2,6,2,6,3,3,3,3,2,2,2,2,4,4,4,4,2,5,1,5,4,4,4,4,2,4,2,4,4,4,4,4,2,6,2,8,3,3,5,5,2,2,2,2,4,4,6,6,3,5,1,8,4,4,6,6,2,4,2,7,4,4,7,7,2,6,2,8,3,3,5,5,2,2,2,2,4,4,6,6,2,5,1,8,4,4,6,6,2,4,2,7,4,4,7,7};
-	// How many nanoseconds in between cycles in NTSC & PAL
-	private final double CPU_NTSC_NS = 55.873D;
-	private final double CPU_PAL_NS = 60.147D;
 	
 	private final Instruction[] set = new Instruction[256];
 	
@@ -22,12 +19,11 @@ public class CPU {
 	private byte S = (byte) 0xFD;
 	public CPUFlags P = new CPUFlags();
 	
-	private int P_NMI = 0;
-	private int P_RST = 0;
-	private int P_IRQ = 0;
+	private boolean APUlatch = true;
 	
 	// How many cycles left for this instruction
 	private int cycles = 0;
+	private int cycleid = 0;
 	// Current instruction
 	private byte instr = 0;
 	
@@ -85,6 +81,8 @@ public class CPU {
 	
 	public void runCycle() {
 		runInstructionCycle();
+		if (APUlatch) nes.apu.runCycle();
+		APUlatch = !APUlatch;
 		if (cycles == 0) {
 			checkInterrupts();
 			runInstructionAtPC();
@@ -120,15 +118,12 @@ public class CPU {
 		if (i >= 0x2000 && i <= 0x2007) {
 			return nes.ppu.fetchData(i - 0x2000);
 		}
-		if (i >= 0x4000 && i <= 0x4015) {
-			updateAPU();
-		}
 		if (i >= 0x4016 && i <= 0x4017) {
 			return nes.fetchControllerInput(i - 0x4016);
 		}
 		return mem[i];
 	}
-	private void setByte(int i, byte j) {
+	public void setByte(int i, byte j) {
 		if (i >= 0x800 && i <= 0x1FFF) {
 			while (i >= 0x800) {
 				i -= 0x800;
@@ -138,15 +133,6 @@ public class CPU {
 			i = 0x2000 + ((i - 0x2000) % 8);
 		}
 		mem[i] = j;
-		if (i >= 0x2000 && i <= 0x2007) {
-			nes.ppu.updatePPU();
-		}
-		if (i >= 0x4000 && i <= 0x4015) {
-			updateAPU();
-		}
-	}
-	private void updateAPU() {
-		// TODO
 	}
 	private void pushInterruptData() {
 		// TODO
@@ -160,13 +146,7 @@ public class CPU {
 		P.disableInterrupts();
 		PC = getShort(0xFFFE);
 	}
-	private int indX(int zp) {
-		return getByte(getShort(zp + X));
-	}
-	private int indY(int zp) {
-		return getByte((getShort(zp) + Y));
-	}
-	private short getShort(int addr) {
+	public short getShort(int addr) {
 		return (short) (getByte(addr) | (getByte(addr + 1) << 8));
 	}
 	/*private byte ASL(byte b) {
@@ -230,12 +210,13 @@ public class CPU {
 		} */
 		instr = i;
 		PC += BPI[i];
+		cycleid = 0;
 		cycles = CPI[i] - 1;
 	}
 	private void runInstructionCycle() {
 		// 6502 bugs/quirks are INTENTIONALLY included
 		// - RMW instructions write twice: original then modified
 		// - JMP indirect bug present
-		set[instr].runCycle(cycles);
+		set[instr].runCycle(cycleid);
 	}
 }

@@ -11,7 +11,10 @@ public class PPU {
 	private boolean PM2005L = false;
 	private short PPUSCRL = 0;
 	private short OAMADDR = 0;
+	// 88974 PPU cycles (PPU cycle is ran 3 times for every CPU cycle)
+	private int powerup = 88974;
 	public PPU(NES n) {
+		powerup = 88974;
 		nes = n;
 		for (int i = 0; i < 256; i++) {
 			oam[i] = 0;
@@ -35,7 +38,7 @@ public class PPU {
 		// read of address $2000 + i
 		return 0;
 	}
-	public void updatePPU() {
+	public void runCycle() {
 		
 	}
 }
