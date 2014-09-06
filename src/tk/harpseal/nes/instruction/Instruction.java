@@ -8,7 +8,7 @@ public abstract class Instruction {
 	public int p = 0;						// parameter (fetched by instruction)
 	public byte t1 = 0;						// temp 1
 	public byte t2 = 0;						// temp 2
-	public byte t3 = 0;						// temp 3
+	public int t3 = 0;						// temp 3
 	protected Instruction(CPU c, AddressingMode m) {
 		cpu = c;
 		mode = m;

@@ -12,11 +12,12 @@ public class CPU {
 	
 	private byte[] mem = new byte[16416];
 	
-	public int PC = 0;
+	public short PC = 0;
+	public short NPC = 0;
 	private byte A = 0;
 	private byte X = 0;
 	private byte Y = 0;
-	private byte S = (byte) 0xFD;
+	public byte S = (byte) 0xFD;
 	public CPUFlags P = new CPUFlags();
 	
 	private boolean APUlatch = true;
@@ -26,6 +27,8 @@ public class CPU {
 	private int cycleid = 0;
 	// Current instruction
 	private byte instr = 0;
+	
+	// TODO IRQ/NMI is BRK with different params!
 	
 	public boolean S_NMI = false;
 	public boolean S_RST = false;
@@ -53,6 +56,9 @@ public class CPU {
 	public byte getY() {
 		return Y;
 	}
+	public void jump(short addr) {
+		NPC = addr;
+	}
 	public void setA(byte b) {
 		A = b;
 		flag(A);
@@ -66,10 +72,10 @@ public class CPU {
 	public void setY(byte b) {
 		Y = b;
 	}
-	private void flag(byte a2) {
+	public void flag(byte a2) {
 		P.AND((byte) 0b01111101);
 		if (a2 == 0) P.OR((byte) 0x02); 
-		if (a2 < 0) P.OR((byte) 0x80); 
+		if ((a2 < 0) || (a2 >= 128)) P.OR((byte) 0x80); 
 	}
 	public void compare(byte a1, byte a2) {
 		P.AND((byte) 0b01111100);
@@ -84,6 +90,7 @@ public class CPU {
 		if (APUlatch) nes.apu.runCycle();
 		APUlatch = !APUlatch;
 		if (cycles == 0) {
+			PC = NPC;
 			checkInterrupts();
 			runInstructionAtPC();
 			runInstructionCycle();
@@ -163,10 +170,6 @@ public class CPU {
 		setByte(0x100 + S, d);
 		S = (byte) ((S - 1) & 0xFF);
 	}
-	public byte pull() {
-		S = (byte) ((S + 1) & 0xFF);
-		return getByte(0x100 + S);
-	}
 	private void runInstruction(byte i) {
 		// 6502 bugs/quirks are INTENTIONALLY included
 		// - RMW instructions write twice: original then modified
@@ -209,7 +212,7 @@ public class CPU {
 		// Below this line only undocumented opcodes
 		} */
 		instr = i;
-		PC += BPI[i];
+		NPC += BPI[i];
 		cycleid = 0;
 		cycles = CPI[i] - 1;
 	}

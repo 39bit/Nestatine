@@ -2,14 +2,14 @@ package tk.harpseal.nes.instruction;
 
 import tk.harpseal.nes.CPU;
 
-public class InstructionASL extends Instruction {
+public class InstructionLSR extends Instruction {
 
-	public InstructionASL(CPU c, AddressingMode m) {
+	public InstructionLSR(CPU c, AddressingMode m) {
 		super(c, m);
 	}
-	public static byte ASL(CPU c, byte b, boolean rotate) {
-		byte v = (byte) (((b << 1) & 0xFF) | (rotate ? c.P.getCarry() : 0));
-		c.P.setCarry((b & 0x80) != 0);
+	public static byte LSR(CPU c, byte b, boolean rotate) {
+		byte v = (byte) (((b >> 1) & 0xFF) | (rotate ? (c.P.getCarry() << 7) : 0));
+		c.P.setCarry((b & 0x1) != 0);
 		return v;
 	}
 	@Override
@@ -19,7 +19,7 @@ public class InstructionASL extends Instruction {
 			case 0:
 				break;
 			case 1:
-				cpu.setA(ASL(cpu,cpu.getA(),false));
+				cpu.setA(LSR(cpu,cpu.getA(),false));
 				cpu.getByte(cpu.PC + 1);
 				break;
 			}
@@ -36,7 +36,7 @@ public class InstructionASL extends Instruction {
 				break;
 			case 3:
 				cpu.setByte(p, t1);
-				t1 = ASL(cpu,t1,false);
+				t1 = LSR(cpu,t1,false);
 				break;
 			case 4:
 				cpu.setByte(p, t1);
@@ -58,7 +58,7 @@ public class InstructionASL extends Instruction {
 				break;
 			case 4:
 				cpu.setByte(p, t1);
-				t1 = ASL(cpu,t1,false);
+				t1 = LSR(cpu,t1,false);
 				break;
 			case 5:
 				cpu.setByte(p, t1);
@@ -80,7 +80,7 @@ public class InstructionASL extends Instruction {
 				break;
 			case 4:
 				cpu.setByte(p, t1);
-				t1 = ASL(cpu,t1,false);
+				t1 = LSR(cpu,t1,false);
 				break;
 			case 5:
 				cpu.setByte(p, t1);
@@ -109,7 +109,7 @@ public class InstructionASL extends Instruction {
 				break;
 			case 5:
 				cpu.setByte(p, t1);
-				t1 = ASL(cpu,t1,false);
+				t1 = LSR(cpu,t1,false);
 				break;
 			case 6:
 				cpu.setByte(p, t1);

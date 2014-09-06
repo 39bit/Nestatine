@@ -2,9 +2,9 @@ package tk.harpseal.nes.instruction;
 
 import tk.harpseal.nes.CPU;
 
-public class InstructionASL extends Instruction {
+public class InstructionROL extends Instruction {
 
-	public InstructionASL(CPU c, AddressingMode m) {
+	public InstructionROL(CPU c, AddressingMode m) {
 		super(c, m);
 	}
 	public static byte ASL(CPU c, byte b, boolean rotate) {
@@ -36,11 +36,10 @@ public class InstructionASL extends Instruction {
 				break;
 			case 3:
 				cpu.setByte(p, t1);
-				t1 = ASL(cpu,t1,false);
+				t1 = ASL(cpu,t1,true);
 				break;
 			case 4:
 				cpu.setByte(p, t1);
-				cpu.flag(t1);
 			}
 		}
 		if (mode == AddressingMode.ZEROPAGE_X) {
@@ -58,11 +57,10 @@ public class InstructionASL extends Instruction {
 				break;
 			case 4:
 				cpu.setByte(p, t1);
-				t1 = ASL(cpu,t1,false);
+				t1 = ASL(cpu,t1,true);
 				break;
 			case 5:
 				cpu.setByte(p, t1);
-				cpu.flag(t1);
 			}
 		}
 		if (mode == AddressingMode.ABSOLUTE) {
@@ -80,11 +78,10 @@ public class InstructionASL extends Instruction {
 				break;
 			case 4:
 				cpu.setByte(p, t1);
-				t1 = ASL(cpu,t1,false);
+				t1 = ASL(cpu,t1,true);
 				break;
 			case 5:
 				cpu.setByte(p, t1);
-				cpu.flag(t1);
 			}
 		}
 		if (mode == AddressingMode.ABSOLUTE_X) {
@@ -109,11 +106,10 @@ public class InstructionASL extends Instruction {
 				break;
 			case 5:
 				cpu.setByte(p, t1);
-				t1 = ASL(cpu,t1,false);
+				t1 = ASL(cpu,t1,true);
 				break;
 			case 6:
 				cpu.setByte(p, t1);
-				cpu.flag(t1);
 			}
 		}
 	}
