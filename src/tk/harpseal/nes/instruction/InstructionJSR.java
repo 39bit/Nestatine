@@ -21,10 +21,10 @@ public class InstructionJSR extends Instruction {
 			t3 = cpu.PC + 2;
 			break;
 		case 3:
-			cpu.push((byte) ((cpu.PC) >> 8));
+			cpu.push((byte) (t3 >> 8));
 			break;
 		case 4:
-			cpu.push((byte) ((cpu.PC) & 0xFF));
+			cpu.push((byte) (t3 & 0xFF));
 			break;
 		case 5:
 			p |= (cpu.getByte(cpu.PC + 2) << 8);

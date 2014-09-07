@@ -17,7 +17,7 @@ public class CPU {
 	private byte A = 0;
 	private byte X = 0;
 	private byte Y = 0;
-	public byte S = (byte) 0xFD;
+	public byte S = 0;
 	public CPUFlags P = new CPUFlags();
 	
 	private boolean APUlatch = true;
@@ -28,11 +28,20 @@ public class CPU {
 	// Current instruction
 	private byte instr = 0;
 	
-	// TODO IRQ/NMI is BRK with different params!
+	// Force next instruction to be BRK? used for interrupts
+	private boolean interrupting = false;
+	// Interrupt is NMI instead of IRQ (jump from $FFFA not $FFFE)
+	public boolean nmi = false;
+	// Interrupt IRQ is BRK?
+	public boolean brk = false;
+	
+	// Doing!
 	
 	public boolean S_NMI = false;
 	public boolean S_RST = false;
 	public boolean S_IRQ = false;
+	
+	private int powerupcycles = 10;
 	
 	private NES nes;
 	
@@ -45,7 +54,7 @@ public class CPU {
 			mem[i] = (byte) 0xFF;
 		}
 		P = new CPUFlags();
-		
+		powerupcycles = 10;
 	}
 	public byte getA() {
 		return A;
@@ -86,6 +95,33 @@ public class CPU {
 	}
 	
 	public void runCycle() {
+		if (powerupcycles > 0) {
+			switch (powerupcycles) {
+			case 10:
+				S = 0x00;
+				break;
+			case 7:
+				getByte(0x100 + S);
+				S = (byte) (S - 1);
+				break;
+			case 6:
+				getByte(0x100 + S);
+				S = (byte) (S - 1);
+				break;
+			case 5:
+				getByte(0x100 + S);
+				S = (byte) (S - 1);
+				break;
+			case 4:
+				PC = getByte(0xFFFC);
+				break;
+			case 3:
+				PC |= (getByte(0xFFFD) << 8);
+				// Then we wait
+			}
+			powerupcycles--;
+			return;
+		}
 		runInstructionCycle();
 		if (APUlatch) nes.apu.runCycle();
 		APUlatch = !APUlatch;
@@ -100,6 +136,11 @@ public class CPU {
 	}
 	public void runInstructionAtPC() {
 		byte i = mem[PC];
+		brk = (i == 0);
+		if (interrupting) {
+			i = 0;
+			interrupting = false;
+		}
 		runInstruction(i);
 	}
 	private void checkInterrupts() {
@@ -111,6 +152,8 @@ public class CPU {
 		S_NMI = false;
 		S_IRQ = false;
 		setByte(0x4015, (byte) 0);
+		jump(getShort(0xFFFC));
+		powerupcycles = 10;
 	}
 	public byte getByte(int i) {
 		i = i & 0xFFFF;
@@ -141,17 +184,15 @@ public class CPU {
 		}
 		mem[i] = j;
 	}
-	private void pushInterruptData() {
-		// TODO
-	}
 	private void callNMI() {
-		pushInterruptData();
-		PC = getShort(0xFFFA);
+		nmi = true;
+		brk = false;
+		interrupting = true;
 	}
 	private void callIRQ() {
-		pushInterruptData();
-		P.disableInterrupts();
-		PC = getShort(0xFFFE);
+		nmi = false;
+		brk = false;
+		interrupting = true;
 	}
 	public short getShort(int addr) {
 		return (short) (getByte(addr) | (getByte(addr + 1) << 8));
