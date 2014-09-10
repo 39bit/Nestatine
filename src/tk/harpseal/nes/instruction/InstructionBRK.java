@@ -14,10 +14,12 @@ public class InstructionBRK extends Instruction {
 		case 0:
 			if (cpu.nmi)
 				offset = 0xFFFA;
+			cpu.increasePC();
 			break;
 		case 1:
 			cpu.getByte(cpu.PC + 1);
 			cpu.PC++;
+			cpu.increasePC();
 			break;
 		case 2:
 			cpu.push((byte) (cpu.PC >> 8));

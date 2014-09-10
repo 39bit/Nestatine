@@ -11,6 +11,7 @@ public class InstructionRTS extends Instruction {
 	public void runCycle(int cycles) {
 		switch (cycles) {
 		case 0:
+			cpu.increasePC();
 			break;
 		case 1:
 			cpu.getByte(cpu.PC + 1);

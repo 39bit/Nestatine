@@ -15,9 +15,11 @@ public class InstructionDEC extends Instruction {
 		if (mode == AddressingMode.ZEROPAGE) {
 			switch (cycles) {
 			case 0:
+				cpu.increasePC();
 				break;
 			case 1:
-				p = cpu.getByte(cpu.PC + 1);
+				p = cpu.getByte(cpu.PC);
+				cpu.increasePC();
 				break;
 			case 2:
 				t1 = cpu.getByte(p);
@@ -34,9 +36,11 @@ public class InstructionDEC extends Instruction {
 		if (mode == AddressingMode.ZEROPAGE_X) {
 			switch (cycles) {
 			case 0:
+				cpu.increasePC();
 				break;
 			case 1:
-				p = cpu.getByte(cpu.PC + 1);
+				p = cpu.getByte(cpu.PC);
+				cpu.increasePC();
 				break;
 			case 2:
 				p = (p + cpu.getX()) & 0xFF;
@@ -56,12 +60,15 @@ public class InstructionDEC extends Instruction {
 		if (mode == AddressingMode.ABSOLUTE) {
 			switch (cycles) {
 			case 0:
+				cpu.increasePC();
 				break;
 			case 1:
-				p = cpu.getByte(cpu.PC + 1);
+				p = cpu.getByte(cpu.PC);
+				cpu.increasePC();
 				break;
 			case 2:
-				p |= cpu.getByte(cpu.PC + 2) << 8;
+				p |= cpu.getByte(cpu.PC) << 8;
+				cpu.increasePC();
 				break;
 			case 3:
 				t1 = cpu.getByte(p);
@@ -78,12 +85,15 @@ public class InstructionDEC extends Instruction {
 		if (mode == AddressingMode.ABSOLUTE_X) {
 			switch (cycles) {
 			case 0:
+				cpu.increasePC();
 				break;
 			case 1:
-				p = cpu.getByte(cpu.PC + 1);
+				p = cpu.getByte(cpu.PC);
+				cpu.increasePC();
 				break;
 			case 2:
-				p |= cpu.getByte(cpu.PC + 2) << 8;
+				p |= cpu.getByte(cpu.PC) << 8;
+				cpu.increasePC();
 				t3 = (p & 0xFF) + cpu.getX();
 				break;
 			case 3:

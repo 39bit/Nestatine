@@ -12,22 +12,23 @@ public class InstructionJSR extends Instruction {
 	public void runCycle(int cycles) {
 		switch (cycles) {
 		case 0:
+			cpu.increasePC();
 			break;
 		case 1:
-			p = cpu.getByte(cpu.PC + 1);
+			p = cpu.getByte(cpu.PC);
+			cpu.increasePC();
 			break;
 		case 2:
 			// Nobody knows what happens here!
-			t3 = cpu.PC + 2;
 			break;
 		case 3:
-			cpu.push((byte) (t3 >> 8));
+			cpu.push((byte) (cpu.PC >> 8));
 			break;
 		case 4:
-			cpu.push((byte) (t3 & 0xFF));
+			cpu.push((byte) (cpu.PC & 0xFF));
 			break;
 		case 5:
-			p |= (cpu.getByte(cpu.PC + 2) << 8);
+			p |= (cpu.getByte(cpu.PC) << 8);
 			cpu.jump((short) p);
 		}
 	}

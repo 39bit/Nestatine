@@ -3,8 +3,6 @@ package tk.harpseal.nes;
 import tk.harpseal.nes.instruction.Instruction;
 
 public class CPU {
-	// Bytes per instruction
-	private final byte[] BPI = {1,2,1,2,2,2,2,2,1,2,1,2,3,3,3,3,2,2,1,2,2,2,2,2,1,3,1,3,3,3,3,3,3,2,1,2,2,2,2,2,1,2,1,2,3,3,3,3,2,2,1,2,2,2,2,2,1,3,1,3,3,3,3,3,1,2,1,2,2,2,2,2,1,2,1,2,3,3,3,3,2,2,1,2,2,2,2,2,1,3,1,3,3,3,3,3,1,2,1,2,2,2,2,2,1,2,1,2,3,3,3,3,2,2,1,2,2,2,2,2,1,3,1,3,3,3,3,3,1,2,1,2,2,2,2,2,1,2,1,2,3,3,3,3,2,2,1,2,2,2,2,2,1,3,1,3,3,3,3,3,2,2,2,2,2,2,2,2,1,2,1,2,3,3,3,3,2,2,1,2,2,2,2,2,1,3,1,3,3,3,3,3,1,2,1,2,2,2,2,2,1,2,1,2,3,3,3,3,2,2,1,2,2,2,2,2,1,3,1,3,3,3,3,3,1,2,1,2,2,2,2,2,1,2,1,2,3,3,3,3,2,2,1,2,2,2,2,2,1,3,1,3,3,3,3,3};
 	// Cycles per instruction
 	private final byte[] CPI = {7,6,1,8,3,3,5,5,3,2,2,2,4,4,6,6,3,5,1,8,4,4,6,6,2,4,2,7,4,4,7,7,6,6,1,8,3,3,5,5,4,2,2,2,4,4,6,6,2,5,1,8,4,4,6,6,2,4,2,7,4,4,7,7,6,6,1,8,3,3,5,5,3,2,2,2,3,4,6,6,3,5,1,8,4,4,6,6,2,4,2,7,4,4,7,7,6,6,1,8,3,3,5,5,4,2,2,2,5,4,6,6,2,5,1,8,4,4,6,6,2,4,2,7,4,4,7,7,2,6,2,6,3,3,3,3,2,2,2,2,4,4,4,4,3,6,1,6,4,4,4,4,2,5,2,5,5,5,5,5,2,6,2,6,3,3,3,3,2,2,2,2,4,4,4,4,2,5,1,5,4,4,4,4,2,4,2,4,4,4,4,4,2,6,2,8,3,3,5,5,2,2,2,2,4,4,6,6,3,5,1,8,4,4,6,6,2,4,2,7,4,4,7,7,2,6,2,8,3,3,5,5,2,2,2,2,4,4,6,6,2,5,1,8,4,4,6,6,2,4,2,7,4,4,7,7};
 	
@@ -13,7 +11,6 @@ public class CPU {
 	private byte[] mem = new byte[16416];
 	
 	public short PC = 0;
-	public short NPC = 0;
 	private byte A = 0;
 	private byte X = 0;
 	private byte Y = 0;
@@ -66,7 +63,7 @@ public class CPU {
 		return Y;
 	}
 	public void jump(short addr) {
-		NPC = addr;
+		PC = addr;
 	}
 	public void setA(byte b) {
 		A = b;
@@ -126,7 +123,6 @@ public class CPU {
 		if (APUlatch) nes.apu.runCycle();
 		APUlatch = !APUlatch;
 		if (cycles == 0) {
-			PC = NPC;
 			checkInterrupts();
 			runInstructionAtPC();
 			runInstructionCycle();
@@ -184,6 +180,12 @@ public class CPU {
 		}
 		mem[i] = j;
 	}
+	public void increasePC() {
+		PC = (short) (PC + 1);
+	}
+	public void addCycle() {
+		cycles++;
+	}
 	private void callNMI() {
 		nmi = true;
 		brk = false;
@@ -212,48 +214,7 @@ public class CPU {
 		S = (byte) ((S - 1) & 0xFF);
 	}
 	private void runInstruction(byte i) {
-		// 6502 bugs/quirks are INTENTIONALLY included
-		// - RMW instructions write twice: original then modified
-		// - JMP indirect bug present
-		/* switch (i) {
-		case 0x00: // BRK
-			// TODO	
-			break;
-		case 0x01: // ORA X,ind
-			setA(A | getByte(indX(p)));
-			break;
-		case 0x05: // ORA zpg
-			setA(A | getByte(p));
-			break;
-		case 0x06: // ASL zpg
-			B = getByte(p);
-			setByte(p, B); 
-			setByte(p, ASL(B));
-			break;
-		case 0x08: // PHP impl
-			push(P.getAsByte());
-			break;
-		case 0x09: // ORA #
-			setA(A | p);
-			break;
-		case 0x0A: // ASL A
-			setA(ASL(A));
-			break;
-		case 0x0D: // ORA abs
-			setA(A | getByte(p));
-			break;
-		case 0x0E: // ASL abs
-			B = getByte(p);
-			setByte(p, B); 
-			setByte(p, ASL(B));
-			break;
-		case 0x10: // BPL rel
-			
-			break;
-		// Below this line only undocumented opcodes
-		} */
 		instr = i;
-		NPC += BPI[i];
 		cycleid = 0;
 		cycles = CPI[i] - 1;
 	}
@@ -261,6 +222,6 @@ public class CPU {
 		// 6502 bugs/quirks are INTENTIONALLY included
 		// - RMW instructions write twice: original then modified
 		// - JMP indirect bug present
-		set[instr].runCycle(cycleid);
+		set[instr].runCycle(cycleid++);
 	}
 }

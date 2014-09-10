@@ -10,6 +10,8 @@ public class InstructionNOP extends Instruction {
 
 	@Override
 	public void runCycle(int cycles) {
+		if (cycles == 0)
+			cpu.increasePC();
 		// This is a NOP/NOOP, what am I supposed to do?
 	}
 

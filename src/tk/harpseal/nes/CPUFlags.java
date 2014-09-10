@@ -63,4 +63,25 @@ public class CPUFlags {
 	public int getCarry() {
 		return crry ? 1 : 0;
 	}
+	public boolean getBit(int i) {
+		switch (i) {
+		case 0:
+			return crry;
+		case 1:
+			return zero;
+		case 2:
+			return intd;
+		case 3:
+			return fbcd;
+		case 4:
+			return fbrk;
+		case 5:
+			return flgx;
+		case 6:
+			return ovrf;
+		case 7:
+			return sign;
+		}
+		return false;
+	}
 }

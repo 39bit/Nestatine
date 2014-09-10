@@ -11,9 +11,10 @@ public class InstructionRTI extends Instruction {
 	public void runCycle(int cycles) {
 		switch (cycles) {
 		case 0:
+			cpu.increasePC();
 			break;
 		case 1:
-			cpu.getByte(cpu.PC + 1);
+			cpu.getByte(cpu.PC);
 			break;
 		case 2:
 			cpu.S = (byte) (cpu.S + 1);
