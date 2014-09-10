@@ -1,7 +1,7 @@
 Nestatine
 =========
 
-A NES emulator project written in Java.
+A NES emulator project written in Java by 39Bit/CosmoConsole.
 
 Some links used for reference:
 http://users.telenet.be/kim1-6502/6502/hwman.html
