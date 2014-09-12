@@ -32,8 +32,6 @@ public class CPU {
 	// Interrupt IRQ is BRK?
 	public boolean brk = false;
 	
-	// Doing!
-	
 	public boolean S_NMI = false;
 	public boolean S_RST = false;
 	public boolean S_IRQ = false;
@@ -73,10 +71,18 @@ public class CPU {
 		setA((byte) (i & 0xFF));
 	}
 	public void setX(byte b) {
+		setX(b, false);
+	}
+	public void setX(byte b, boolean updateFlags) {
 		X = b;
+		flag(X);
 	}
 	public void setY(byte b) {
+		setY(b, false);
+	}
+	public void setY(byte b, boolean updateFlags) {
 		Y = b;
+		flag(Y);
 	}
 	public void flag(byte a2) {
 		P.AND((byte) 0b01111101);
@@ -199,16 +205,6 @@ public class CPU {
 	public short getShort(int addr) {
 		return (short) (getByte(addr) | (getByte(addr + 1) << 8));
 	}
-	/*private byte ASL(byte b) {
-		byte v = (byte) (((b << 1) & 0xFF) | P.getCarry());
-		P.setCarry((b & 0x80) != 0);
-		return v;
-	}
-	private byte LSR(byte b) {
-		byte v = (byte) (((b >> 1) & 0xFF) | (P.getCarry() << 7));
-		P.setCarry((b & 0x01) != 0);
-		return v;
-	}*/
 	public void push(byte d) {
 		setByte(0x100 + S, d);
 		S = (byte) ((S - 1) & 0xFF);

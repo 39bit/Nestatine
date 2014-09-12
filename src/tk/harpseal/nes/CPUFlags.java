@@ -45,11 +45,20 @@ public class CPUFlags {
 	public void AND(byte b) {
 		this.fromByte((byte) (getAsByte() & b));
 	}
+	public void AOR(byte i, byte j) {
+		this.fromByte((byte) ((getAsByte() & i) | j));
+	}
 	public void disableInterrupts() {
 		intd = true;
 	}
 	public void enableInterrupts() {
 		intd = false;
+	}
+	public void isZero() {
+		zero = true;
+	}
+	public void notZero() {
+		zero = false;
 	}
 	public boolean enabledIRQ() {
 		return !intd;
@@ -62,6 +71,9 @@ public class CPUFlags {
 	}
 	public int getCarry() {
 		return crry ? 1 : 0;
+	}
+	public int invCarry() {
+		return crry ? 0 : 1;
 	}
 	public boolean getBit(int i) {
 		switch (i) {
@@ -83,5 +95,12 @@ public class CPUFlags {
 			return sign;
 		}
 		return false;
+	}
+	public void getZero(byte t1) {
+		if (t1 == 0) {
+			this.isZero();
+		} else {
+			this.notZero();
+		}
 	}
 }
