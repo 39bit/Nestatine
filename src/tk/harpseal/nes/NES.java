@@ -18,6 +18,7 @@ public class NES {
 	private int cpuclock;
 	private int ppuclock; 
 	
+	public TVMode tvmode;
 	public CPU cpu;
 	public PPU ppu;
 	public APU apu;
@@ -30,6 +31,7 @@ public class NES {
 		game = ROMLoader.fromBytes(rom);
 		ppuclock = 0;
 		cpuclock = 0;
+		tvmode = m;
 		if (m == TVMode.PAL) {
 			CLK_NS = CLK_PAL_NS;
 			CPU_CD = CPU_PAL_CD;

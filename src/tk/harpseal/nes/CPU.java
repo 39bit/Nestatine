@@ -36,6 +36,16 @@ public class CPU {
 	public boolean S_RST = false;
 	public boolean S_IRQ = false;
 	
+	// -1 refers to nonactive OAM_DMA.
+	// 0x00 - 0xFF refers to memory page.
+	private int OAM_DMA = -1;
+	// Cycle of OAM DMA
+	private int OAM_DMA_C = 0;
+	// Temporary value for OAM DMA
+	private byte OAM_DMA_T = 0;
+	
+	private boolean odd_cycle = true;
+	
 	private int powerupcycles = 10;
 	
 	private NES nes;
@@ -98,9 +108,30 @@ public class CPU {
 	}
 	
 	public void runCycle() {
+		odd_cycle = !odd_cycle;
+		if (OAM_DMA >= 0) {
+			if (OAM_DMA_C == 0 && odd_cycle) return;
+			if (OAM_DMA_C > 0) {
+				int a = (int) ((OAM_DMA_C - 1) / 2) & 0xFF;
+				if (OAM_DMA_C % 2 != 0) {
+					// read
+					OAM_DMA_T = getByte((OAM_DMA << 8) | a);
+				} else {
+					// write
+					nes.ppu.setOAMByte(a, OAM_DMA_T);
+				}
+			}
+			OAM_DMA_C++;
+			if (OAM_DMA_C == 513) {
+				OAM_DMA_C = 0;
+				OAM_DMA = -1;
+			}
+			return;
+		}
 		if (powerupcycles > 0) {
 			switch (powerupcycles) {
 			case 10:
+				OAM_DMA = -1;
 				S = 0x00;
 				break;
 			case 7:
@@ -183,6 +214,14 @@ public class CPU {
 		}
 		if (i >= 0x2000 && i <= 0x3FFF) {
 			i = 0x2000 + ((i - 0x2000) % 8);
+		}
+		if (i >= 0x2000 && i <= 0x2007) {
+			nes.ppu.setData(i, j);
+			return;
+		}
+		if (i == 0x4014) {
+			OAM_DMA = j;
+			OAM_DMA_C = 0;
 		}
 		mem[i] = j;
 	}
