@@ -23,6 +23,7 @@ public class NES {
 	public PPU ppu;
 	public APU apu;
 	public ROM game;
+	public MirroringScheme mirror;
 	
 	public NES(byte[] rom, TVMode m) {
 		cpu = new CPU(this);
