@@ -207,6 +207,7 @@ public class CPU {
 		return mem[i];
 	}
 	public void setByte(int i, byte j) {
+		int a = i;
 		if (i >= 0x800 && i <= 0x1FFF) {
 			while (i >= 0x800) {
 				i -= 0x800;
@@ -216,7 +217,7 @@ public class CPU {
 			i = 0x2000 + ((i - 0x2000) % 8);
 		}
 		if (i >= 0x2000 && i <= 0x2007) {
-			nes.ppu.setData(i, j);
+			nes.ppu.setData(i, j, a);
 			return;
 		}
 		if (i == 0x4014) {
