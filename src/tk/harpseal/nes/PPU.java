@@ -27,10 +27,13 @@ public class PPU {
 	private byte BG_PR2 = 0;
 	
 	private byte LAST_WRITE = 0;
+	private byte OAM_TEMP = 0;
 	
 	public boolean NMI_OCCURRED = false;
 	public boolean NMI_OUTPUT = false;
 	public boolean T_NMI = false;
+	public boolean SPR_OVERFLOW = false;
+	public boolean SPR0_HIT = false;
 	
 	private byte[] SPR_BMP = new byte[8];
 	private byte[] SPR_ATTR = new byte[8];
@@ -66,6 +69,8 @@ public class PPU {
 			PM2005L = false;
 			byte k = (byte) (LAST_WRITE & 0b00011111);
 			if (NMI_OCCURRED) k |= 0b10000000;
+			if (SPR0_HIT) k |= 0b01000000;
+			if (SPR_OVERFLOW) k |= 0b00100000;
 			T_NMI = false;			// missing occasional VBL flag
 			NMI_OCCURRED = false; 	// don't forget this!
 			return k;
@@ -74,9 +79,8 @@ public class PPU {
 			if (NMI_OCCURRED || isForcedBlank()) {
 				return oam_1[OAMADDR];
 			} else {
-				if (PXCYCLE < 64) return (byte) 0xFF;
+				return OAM_TEMP;
 			}
-			return 0;
 		}
 		return 0;
 	}
@@ -88,10 +92,15 @@ public class PPU {
 			SCANLINE++;
 		}
 		if (SCANLINE == -1) {
+			if (PXCYCLE == 1) {
+				NMI_OCCURRED = false;
+				SPR0_HIT = false;
+				SPR_OVERFLOW = false;
+			}
 			spriteEvaluation();
 		}
 		if (SCANLINE >= -1 && SCANLINE <= 239) { //render
-			spriteEvaluation();
+			spriteEvaluation();	
 		}
 		if (SCANLINE == 240) { //post-render
 			// IDLE
@@ -109,23 +118,99 @@ public class PPU {
 				}
 			}
 			if ((SCANLINE == 261 && nes.tvmode == TVMode.NTSC)||(SCANLINE == 331 && nes.tvmode == TVMode.PAL)){
-				SCANLINE = 0;
+				SCANLINE = -1;
 				PXCYCLE = -1;
-				NMI_OCCURRED = false;
 			}
 		}
 		PXCYCLE++;
 	}
+	private byte OAMnm(int n, int m) {
+		return oam_1[(n*4)+m];
+	}
+	private int spriteoffset() {
+		return ((PPUCTRL & 0b00100000) != 0) ? 15 : 7;
+	}
+	private int n = 0; // these two variables are
+	private int m = 0; // used for sprite evaluation
+	private byte c= 0; // cycle 65-256: sprite eval cycle
+					   // cycle 257-320: selected sprite cycle
+	private int s = 0; // free slot on secondary OAM, a.k.a.
+					   // how many sprites have been found
 	private void spriteEvaluation() {
-		if (PXCYCLE < 64) {
-			oam_2[PXCYCLE >> 1] = (byte) 0xFF;
+		int SPCYCLE = PXCYCLE - 1;
+		int SPLINE = SCANLINE + 1;
+		int o = spriteoffset();
+		if (SPCYCLE >= 0 && SPCYCLE < 64) {
+			OAM_TEMP = (byte) 0xFF;
+			oam_2[SPCYCLE >> 1] = (byte) 0xFF;
+			n = m = s = 0;
 		}
-		if (PXCYCLE >= 64 && PXCYCLE < 256) {
-			// TODO
+		if (SPCYCLE >= 64 && SPCYCLE < 256) {
+			if (c == 0) { // 1
+				int y = OAMnm(n, 0);
+				OAM_TEMP = (byte) y;
+				int yo = (SPLINE - y);
+				if (yo <= o && yo >= 0) { // 1a
+					for (int x = 0; x<3; x++)
+						oam_2((s*4)+x, OAMnm(n,x));
+					s++;
+				}
+				c = 1;
+			} else if (c == 1) { // 2
+				n++;
+				if (n == 64) // 2a
+					c = 3;
+				else if (s < 8) // 2b
+					c = 0;
+				else if (s >= 8) // 2c
+					c = 2;
+			} else if (c == 2) { // 3
+				int y = OAMnm(n, m);
+				int yo = (SPLINE - y);
+				OAM_TEMP = (byte) y;
+				if (yo <= o && yo >= 0) { // 3a
+					SPR_OVERFLOW = true;
+					m++;
+					if (m == 4) {
+						m = 0;
+						n++;
+					}
+				} else { // 3b
+					n++;
+					m++; // sprite overflow bug!
+					if (n == 64) c = 3;
+					if (m == 4) m = 0;
+				}
+			} else if (c == 3) { // 4
+				OAM_TEMP = OAMnm(n,0);
+				n++;
+				if (n == 64) n = 0;
+			}
 		}
-		if (PXCYCLE >= 256 && PXCYCLE < 320) {
-			
+		if (SPCYCLE == 256) {
+			c = 0;
+			m = 0;
 		}
+		if (SPCYCLE >= 256 && SPCYCLE < 320) {
+			OAM_TEMP = OAMnm(m,(c > 3 ? 3 : c));
+			c++;
+			if (SPCYCLE == 300) {
+				if (s < 8) {
+					oam_2((s*4),OAMnm(n,0));
+				}
+				for (int v = (s*4)+1; v < 64; v++) {
+					oam_2(v, (byte) 0xFF);
+				}
+			}
+			if (c == 8) {
+				c = 0;
+				m++;
+			}
+		}
+	}
+	private void oam_2(int i, byte j) {
+		if (i < 64)
+			oam_2[i] = j;
 	}
 	private boolean isForcedBlank() {
 		return ((PPUMASK & 0b00011000) == 0);
@@ -148,6 +233,7 @@ public class PPU {
 			for (int f = 0; f < 8; f++) {
 				oam_1[h] = oam_1[g];
 			}
+			OAMADDR = j;
 		}
 		
 	}
