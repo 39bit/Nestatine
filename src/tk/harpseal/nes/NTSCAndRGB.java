@@ -1,13 +1,21 @@
 package tk.harpseal.nes;
 
+import java.awt.Graphics2D;
+import java.awt.image.BufferedImage;
+
 public class NTSCAndRGB { 
 	// this class acts as a bridge between PPU palette values
 	// and the NESCanvas
-
+	BufferedImage bi = new BufferedImage(256, 224, BufferedImage.TYPE_INT_RGB);
+	Graphics2D big = null;
+	
 	public NTSCAndRGB() {
-		
+		bi = new BufferedImage(256, 224, BufferedImage.TYPE_INT_RGB);
+		big = bi.createGraphics();
 	}
+	
 	public final double PI = 3.1415926535D;
+	
 	// http://forums.nesdev.com/viewtopic.php?t=8209
 	public byte[] ntsc_to_rgb(int pixel, int PPUMASK) {
 		int color = (pixel & 0x0F);
@@ -31,7 +39,8 @@ public class NTSCAndRGB {
 		byte[] rgb = {(byte) clamp(255 * gammafix(y + 0.946882f*i + 0.623557f*q, gamma)),(byte) clamp(255 * gammafix(y + -0.274788f*i + -0.635691f*q,gamma)),(byte) clamp(255 * gammafix(y + -1.108545f*i +  1.709007f*q,gamma))};
 		return rgb;
 	}
-	// this isn't actually really PAL yet, only difference is red/green switch
+	
+	// this isn't actually really PAL yet, only difference is red/green emphasis bit swap
 	public byte[] pal_to_rgb(int pixel, int PPUMASK) {
 		int color = (pixel & 0x0F);
 		if ((PPUMASK & 1) != 0) color = 0;
@@ -65,6 +74,14 @@ public class NTSCAndRGB {
 	}
 	private int i2b(boolean b) {
 		return b ? 1 : 0;
+	}
+	public void pushPixel(byte[] rgb, int x, int y) {
+		bi.setRGB(x, y, (rgb[0] << 16) | (rgb[1] << 8) | rgb[2]);
+	}
+	public void submit() {
+		NESCanvas.submitNewFrame(bi);
+		bi = new BufferedImage(256, 224, BufferedImage.TYPE_INT_RGB);
+		big = bi.createGraphics();
 	}
 
 }

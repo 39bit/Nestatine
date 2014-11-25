@@ -21,6 +21,8 @@ public class PPU {
 	private short PXCYCLE = 0;
 	private boolean ODD_FRAME = false;
 	
+	private byte PPUDATA = 0;
+	
 	private short BG_SR1 = 0;
 	private short BG_SR2 = 0;
 	private byte BG_PR1 = 0;
@@ -40,9 +42,12 @@ public class PPU {
 	private byte[] SPR_BMP = new byte[8];
 	private byte[] SPR_ATTR = new byte[8];
 	private byte[] SPR_X = new byte[8];
+	
+	private NTSCAndRGB ntsc = null;
 	// 88974 PPU cycles (PPU cycle is ran 3 times for every CPU cycle)
 	private int powerup = 88974;
 	public PPU(NES n) {
+		ntsc = new NTSCAndRGB();
 		PXCYCLE = 0;
 		ODD_FRAME = false;
 		powerup = 88974;
@@ -77,7 +82,7 @@ public class PPU {
 			return k;
 		}
 		if (i == 4) { // should work during any blank
-			if (NMI_OCCURRED || isForcedBlank()) {
+			if (VBLANK || isForcedBlank()) {
 				return oam_1[OAMADDR];
 			} else {
 				return OAM_TEMP;
@@ -92,6 +97,7 @@ public class PPU {
 			else return (byte) ((VRAMADDR >> 8) & 0xFF);
 		}
 		if (i == 7) {
+			if (!(VBLANK || isForcedBlank())) return PPUDATA;
 			byte r = R2007_TEMP;
 			R2007_TEMP = readVRAM(VRAMADDR);
 			if (VRAMADDR >= 0x3F00) r = R2007_TEMP;
@@ -105,6 +111,13 @@ public class PPU {
 		
 		// CHR ROM / RAM
 		return 0;
+	}
+	private void writeVRAM(short v, byte d) {
+		v = mirrorVRAM(v);
+		if (v >= 0x2000) mem[v-0x2000] = d;
+		
+		// CHR ROM / RAM
+		return;
 	}
 	private short mirrorVRAM(short v) {
 		v = (short) (v & 0x3FFF);
@@ -138,8 +151,28 @@ public class PPU {
 		}
 		if (SCANLINE >= -1 && SCANLINE <= 239) { //render
 			spriteEvaluation();	
-			if (PXCYCLE > 1 && PXCYCLE <= 256) {
-				
+			int sy = (PPUSCRL_Y / 8);
+			int fy = (PPUSCRL_Y % 8);
+			short nt = (short) ((0x2000 + sy) + ((short) ((SCANLINE + fy) >> 3) * 0x20) + (2 + (PXCYCLE >> 3)));
+			int sy2 = (PPUSCRL_Y / 16);
+			int fy2 = (PPUSCRL_Y % 16);
+			short at = (short) ((0x23C0 + sy2) + ((short) ((SCANLINE + fy2) >> 4) * 0x08) + (1 + (PXCYCLE >> 4)));
+			int b4 = (PPUCTRL & 0b00010000) != 0 ? 0x100 : 0;
+			if (PXCYCLE >= 1 && PXCYCLE <= 256) {
+				byte PXMODE = (byte) (PXCYCLE%8);
+				// these are just garbage here
+				if (PXMODE==1) PPUDATA = readVRAM(nt);
+				if (PXMODE==3) PPUDATA = readVRAM(at);
+				if (PXMODE==5) PPUDATA = readVRAM((short) (((nt + b4) * 16) + (((SCANLINE + fy) % 8) * 2)));
+				if (PXMODE==7) {
+					PPUDATA = readVRAM((short) (((nt + b4) * 16) + (((SCANLINE + fy) % 8) * 2) + 1));
+					int x = PXCYCLE-1;
+					int y = SCANLINE;
+					for (int i = 0; i < 8; i++) {
+						int pal = readVRAM(at); // palette for specific pixel
+						ntsc.pushPixel((nes.tvmode == TVMode.PAL ? ntsc.pal_to_rgb(pixel, PPUMASK) : ntsc.ntsc_to_rgb(pixel, PPUMASK)), x, y);
+					}
+				}
 			}
 		}
 		if (SCANLINE == 240) { //post-render
@@ -288,7 +321,23 @@ public class PPU {
 				OAMADDR = (byte) ((OAMADDR & 0x03) | ((((OAMADDR >> 2) + 1) & 0x3F) << 2));
 			}
 		}
-		// TODO
+		if (i == 0x2005) {
+			if (!PM2005L) PPUSCRL_X = j;
+			else PPUSCRL_Y = j;
+			PM2005L = !PM2005L;
+		}
+		if (i == 0x2006) {
+			VRAMADDR = (short) (((VRAMADDR << 8) & 0xFFFF) | j);
+		}
+		if (i == 0x2007) {
+			if (isForcedBlank() | VBLANK) {
+				// alright I'll ignore it this time
+				writeVRAM(VRAMADDR, j);
+				VRAMADDR++;
+				if ((PPUCTRL & 0b00000100) != 0) VRAMADDR += 31;
+				if (VRAMADDR > 0x4000) VRAMADDR -= 0x4000;
+			}
+		}
 	}
 	// Designed for DMA
 	public void setOAMByte(int a, byte b) {

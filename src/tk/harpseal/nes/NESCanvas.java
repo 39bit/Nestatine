@@ -24,7 +24,7 @@ public class NESCanvas extends JComponent {
 		g.drawImage(frame, 0, 0, getSize().width, getSize().height, 0, 0, 256, 224, null);
 	}
 	
-	public void submitNewFrame(BufferedImage f) {
+	public static void submitNewFrame(BufferedImage f) {
 		frame = f;
 	}
 
